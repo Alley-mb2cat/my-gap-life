@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#fdf6ee" />
+  <title>My Gap Life</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Caveat:wght@500&display=swap" rel="stylesheet" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Noto Sans TC', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(160deg, #fdf6ee 0%, #fef9f3 40%, #f5f0ff 100%);
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    input::placeholder { color: #c4b8a8; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback } = React;
+
+    /* ─── STORAGE ─── */
+    const STORAGE_KEY = "gap-life-data";
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return null;
+    }
+    function saveData(data) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+    }
+
+    /* ─── DATA ─── */
+    const DEFAULT_ITEMS = [
+      { id: 1, text: "回家陪爸媽＋母親節", emoji: "🏠", tab: "must" },
+      { id: 2, text: "遷戶口", emoji: "📋", tab: "must" },
+      { id: 3, text: "看牙醫", emoji: "🦷", tab: "must" },
+      { id: 4, text: "整理衣物跟鞋子", emoji: "👟", tab: "must" },
+      { id: 5, text: "辦新戶頭", emoji: "🏦", tab: "must" },
+      { id: 6, text: "健康檢查", emoji: "🩺", tab: "must" },
+      { id: 7, text: "上工前完成所有文件", emoji: "📝", tab: "must" },
+      { id: 8, text: "AI 課程（每週日 1.5hr）", emoji: "🤖", tab: "must" },
+      { id: 9, text: "作品集", emoji: "💼", tab: "must" },
+      { id: 10, text: "完成 Weekend Spark", emoji: "✨", tab: "must" },
+      { id: 11, text: "玩新的 PS5 遊戲", emoji: "🎮", tab: "free" },
+      { id: 12, text: "重看好片寫感想", emoji: "🎬", tab: "free" },
+      { id: 13, text: "開始畫畫", emoji: "🎨", tab: "free" },
+      { id: 14, text: "研究人類圖", emoji: "🔮", tab: "free" },
+      { id: 15, text: "研究塔羅牌", emoji: "🃏", tab: "free" },
+      { id: 16, text: "白天上皮拉提斯", emoji: "🧘‍♀️", tab: "free" },
+      { id: 17, text: "看展覽", emoji: "🖼️", tab: "free" },
+      { id: 18, text: "Vibe 食譜網站", emoji: "🍳", tab: "free" },
+      { id: 19, text: "曼陀號面試", emoji: "⛵", tab: "free" },
+    ];
+
+    const DEFAULT_HABITS = [
+      { id: 1, emoji: "💧", text: "喝水 2000cc" },
+      { id: 2, emoji: "💊", text: "吃保健食品" },
+      { id: 3, emoji: "🧘", text: "冥想" },
+      { id: 4, emoji: "📝", text: "紀錄生活" },
+    ];
+
+    const TABS = {
+      must: { label: "一定要做", icon: "🔥", color: "#e8927c", bg: "#fef0ed" },
+      free: { label: "有空閒來做", icon: "🌿", color: "#7ec4a5", bg: "#edf8f2" },
+      habits: { label: "每日習慣", icon: "✅", color: "#9b8ced", bg: "#f0eefb" },
+    };
+
+    const ENCOURAGEMENTS = [
+      "又安排好一件事！✅", "很好，有著落了 🎯", "一件一件來，穩穩的 🌿",
+      "安排好了！放心去做吧 💛", "又少一個待確認的！", "計畫感滿滿 📋", "搞定！繼續下一件 ☀️",
+    ];
+
+    const EMOJI_OPTIONS = ["📌","🎯","📖","🏃‍♀️","🎵","🧠","💡","🌱","🍰","✏️","📸","🛒","💻","🧹","❤️","⭐"];
+
+    const DAILY_SCHEDULE = [
+      { time: "7:00 - 8:30", emoji: "☀️", title: "晨間儀式", desc: "喝水、冥想、看書", type: "fixed" },
+      { time: "8:30 - 9:30", emoji: "🏃‍♀️", title: "晨間運動", desc: "每天都動一動！挑一個：", type: "exercise",
+        options: [{ emoji: "🧘‍♀️", label: "皮拉提斯" },{ emoji: "🚴", label: "騎腳踏車" },{ emoji: "🥾", label: "小爬山散步" }] },
+      { time: "9:30 - 12:00", emoji: "🔥", title: "認真時間", desc: "作品集、Weekend Spark、AI 課程、待辦事項", type: "fixed" },
+      { time: "12:00 - 13:00", emoji: "🍱", title: "午餐休息", desc: "好好吃飯，不用趕", type: "fixed" },
+      { time: "13:00 - 18:00", emoji: "🎨", title: "興趣時間", desc: "從「有空閒來做」挑一件喜歡的事", type: "fixed" },
+      { time: "18:00 - 20:00", emoji: "🍽️", title: "晚餐＋放鬆", desc: "吃飯、散步、耍廢都可以", type: "fixed" },
+      { time: "20:00 - 22:00", emoji: "✏️", title: "輸出時間", desc: "裸辭日記、影評、食譜、學習筆記", type: "fixed" },
+      { time: "22:00 - 23:00", emoji: "🌙", title: "收尾", desc: "紀錄心情、回顧一天、放鬆入睡", type: "fixed" },
+    ];
+
+    /* ─── APP ─── */
+    function GapLife() {
+      const saved = useRef(loadData());
+      const [mounted, setMounted] = useState(false);
+
+      const [page, setPage] = useState("plan");
+      const [items, setItems] = useState(saved.current?.items || DEFAULT_ITEMS);
+      const [checked, setChecked] = useState(saved.current?.checked || {});
+      const [activeTab, setActiveTab] = useState("must");
+      const [toast, setToast] = useState(null);
+      const [animatingId, setAnimatingId] = useState(null);
+      const [showAdd, setShowAdd] = useState(false);
+      const [newText, setNewText] = useState("");
+      const [newEmoji, setNewEmoji] = useState("📌");
+      const [deletingId, setDeletingId] = useState(null);
+      const [editMode, setEditMode] = useState(false);
+      const [selectedExercise, setSelectedExercise] = useState(null);
+      const [habits, setHabits] = useState(saved.current?.habits || DEFAULT_HABITS);
+      const [habitChecked, setHabitChecked] = useState(saved.current?.habitChecked || {});
+      const [showAddHabit, setShowAddHabit] = useState(false);
+      const [newHabitText, setNewHabitText] = useState("");
+      const [newHabitEmoji, setNewHabitEmoji] = useState("📌");
+      const [editHabits, setEditHabits] = useState(false);
+      const inputRef = useRef(null);
+      const habitInputRef = useRef(null);
+
+      useEffect(() => { setMounted(true); }, []);
+
+      // Auto-save
+      useEffect(() => {
+        if (!mounted) return;
+        saveData({ items, checked, habits, habitChecked });
+      }, [items, checked, habits, habitChecked, mounted]);
+
+      // Auto-reset habits daily
+      useEffect(() => {
+        const lastReset = localStorage.getItem("gap-life-habit-date");
+        const today = new Date().toDateString();
+        if (lastReset !== today) {
+          setHabitChecked({});
+          localStorage.setItem("gap-life-habit-date", today);
+        }
+      }, []);
+
+      useEffect(() => { if (showAdd && inputRef.current) inputRef.current.focus(); }, [showAdd]);
+      useEffect(() => { if (showAddHabit && habitInputRef.current) habitInputRef.current.focus(); }, [showAddHabit]);
+
+      const toggle = (id) => {
+        const wasChecked = checked[id];
+        setChecked(prev => ({ ...prev, [id]: !prev[id] }));
+        if (!wasChecked) {
+          setAnimatingId(id);
+          setToast(ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]);
+          setTimeout(() => setToast(null), 2200);
+          setTimeout(() => setAnimatingId(null), 600);
+        }
+      };
+      const addItem = () => {
+        if (!newText.trim()) return;
+        const maxId = items.reduce((m, i) => Math.max(m, i.id), 0);
+        setItems([...items, { id: maxId + 1, text: newText.trim(), emoji: newEmoji, tab: activeTab }]);
+        setNewText(""); setNewEmoji("📌"); setShowAdd(false);
+      };
+      const deleteItem = (id) => {
+        setDeletingId(id);
+        setTimeout(() => {
+          setItems(items.filter(i => i.id !== id));
+          setChecked(prev => { const n = {...prev}; delete n[id]; return n; });
+          setDeletingId(null);
+        }, 280);
+      };
+      const toggleHabit = (id) => setHabitChecked(prev => ({ ...prev, [id]: !prev[id] }));
+      const addHabit = () => {
+        if (!newHabitText.trim()) return;
+        const maxId = habits.reduce((m, h) => Math.max(m, h.id), 0);
+        setHabits([...habits, { id: maxId + 1, emoji: newHabitEmoji, text: newHabitText.trim() }]);
+        setNewHabitText(""); setNewHabitEmoji("📌"); setShowAddHabit(false);
+      };
+      const deleteHabit = (id) => {
+        setHabits(habits.filter(h => h.id !== id));
+        setHabitChecked(prev => { const n = {...prev}; delete n[id]; return n; });
+      };
+      const resetHabits = () => setHabitChecked({});
+
+      const habitsDone = habits.filter(h => habitChecked[h.id]).length;
+      const tabItems = items.filter(i => i.tab === activeTab);
+      const tabDone = tabItems.filter(i => checked[i.id]).length;
+      const totalDone = items.filter(i => checked[i.id]).length;
+      const tab = TABS[activeTab] || TABS.must;
+
+      const S = (base, extra) => ({ ...base, ...extra }); // style merge helper
+
+      return (
+        <div style={{ minHeight: "100vh", padding: "28px 16px 80px", position: "relative" }}>
+
+          {/* Header */}
+          <div style={{ maxWidth: 500, margin: "0 auto", textAlign: "center", marginBottom: 20 }}>
+            <h1 style={{ fontFamily: "'Caveat', cursive", fontSize: 36, fontWeight: 500, color: "#5a4a3a", margin: 0, letterSpacing: 1 }}>My Gap Life</h1>
+          </div>
+
+          {/* Page Switcher */}
+          <div style={{ maxWidth: 500, margin: "0 auto 24px", display: "flex", gap: 0, padding: "3px", background: "rgba(0,0,0,0.04)", borderRadius: 12 }}>
+            {[{ key: "plan", label: "📋 計畫清單" }, { key: "daily", label: "🕐 每日節奏" }].map(p => (
+              <button key={p.key} onClick={() => { setPage(p.key); setShowAdd(false); setEditMode(false); }}
+                style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 10, cursor: "pointer",
+                  fontSize: 14, fontWeight: page === p.key ? 500 : 400,
+                  background: page === p.key ? "white" : "transparent",
+                  color: page === p.key ? "#5a4a3a" : "#9a8b7a",
+                  boxShadow: page === p.key ? "0 1px 4px rgba(0,0,0,0.06)" : "none",
+                  transition: "all 0.25s ease",
+                }}>{p.label}</button>
+            ))}
+          </div>
+
+          {/* ═══ PLAN PAGE ═══ */}
+          {page === "plan" && (
+            <div>
+              <div style={{ maxWidth: 500, margin: "0 auto 16px", textAlign: "center" }}>
+                <p style={{ fontSize: 13, color: "#9a8b7a", margin: 0, fontWeight: 300 }}>打勾 = 已安排到行事曆，確認每件事都有著落</p>
+                <p style={{ color: "#b8a99a", margin: "6px 0 0", fontFamily: "'Caveat', cursive", fontSize: 18 }}>已安排 {totalDone} / {items.length} 件事</p>
+              </div>
+
+              {/* Sub Tabs */}
+              <div style={{ maxWidth: 500, margin: "0 auto 20px", display: "flex", gap: 6, padding: "4px", background: "rgba(255,255,255,0.5)", borderRadius: 16, backdropFilter: "blur(8px)" }}>
+                {Object.entries(TABS).map(([key, t]) => {
+                  const active = activeTab === key;
+                  const count = items.filter(i => i.tab === key).length;
+                  const done = items.filter(i => i.tab === key && checked[i.id]).length;
+                  return (
+                    <button key={key} onClick={() => { setActiveTab(key); setShowAdd(false); setEditMode(false); }}
+                      style={{ flex: 1, padding: "10px 4px", border: "none", borderRadius: 12, cursor: "pointer",
+                        background: active ? "white" : "transparent",
+                        boxShadow: active ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                        transition: "all 0.25s ease", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                      <span style={{ fontSize: 18 }}>{t.icon}</span>
+                      <span style={{ fontSize: 12, fontWeight: active ? 500 : 400, color: active ? t.color : "#9a8b7a", transition: "color 0.25s" }}>{t.label}</span>
+                      <span style={{ fontSize: 10, color: active ? t.color : "#c4b8a8", fontWeight: 300 }}>
+                        {key === "free" ? `${count} 件` : key === "habits" ? `${habitsDone}/${habits.length}` : `${done}/${count}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Progress bar (must only) */}
+              {activeTab === "must" && (
+                <div style={{ maxWidth: 500, margin: "0 auto 20px" }}>
+                  <div style={{ height: 4, borderRadius: 2, background: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 2, width: tabItems.length ? `${(tabDone / tabItems.length) * 100}%` : "0%", background: tab.color, transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Free tab prompt */}
+              {activeTab === "free" && (
+                <div style={{ maxWidth: 500, margin: "0 auto 20px", textAlign: "center", padding: "14px 20px", borderRadius: 14, background: "rgba(126,196,165,0.06)", border: "1.5px solid rgba(126,196,165,0.12)" }}>
+                  <p style={{ fontSize: 14, color: "#6a917e", margin: 0, fontWeight: 300, lineHeight: 1.6 }}>有空的時候來看看 —<br/>今天想做哪件喜歡的事呢？</p>
+                </div>
+              )}
+
+              {/* ── Habits Tab ── */}
+              {activeTab === "habits" && (
+                <div style={{ maxWidth: 500, margin: "0 auto" }}>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+                    <div style={{ position: "relative", width: 90, height: 90 }}>
+                      <svg width="90" height="90" viewBox="0 0 90 90">
+                        <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="5" />
+                        <circle cx="45" cy="45" r="38" fill="none" stroke="#9b8ced" strokeWidth="5"
+                          strokeLinecap="round" strokeDasharray={`${2*Math.PI*38}`}
+                          strokeDashoffset={`${2*Math.PI*38*(1-(habits.length?habitsDone/habits.length:0))}`}
+                          transform="rotate(-90 45 45)" style={{ transition: "stroke-dashoffset 0.5s cubic-bezier(0.4,0,0.2,1)" }} />
+                      </svg>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: habitsDone===habits.length&&habits.length>0 ? 28 : 13, color: "#5a4a3a", fontWeight: 500 }}>
+                        {habitsDone===habits.length&&habits.length>0 ? "✨" : `${Math.round(habits.length?(habitsDone/habits.length)*100:0)}%`}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, padding: "0 4px" }}>
+                    <button onClick={resetHabits} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#c4b8a8", fontWeight: 300 }}>{habitsDone > 0 ? "重置今天" : ""}</button>
+                    <button onClick={() => { setEditHabits(!editHabits); setShowAddHabit(false); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: editHabits ? "#9b8ced" : "#b8a99a", fontWeight: editHabits ? 500 : 400 }}>{editHabits ? "完成編輯" : "編輯"}</button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {habits.map(h => {
+                      const done = habitChecked[h.id];
+                      return (
+                        <div key={h.id} onClick={() => !editHabits && toggleHabit(h.id)}
+                          style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: 16,
+                            background: done ? "rgba(155,140,237,0.06)" : "rgba(255,255,255,0.65)",
+                            border: `1.5px solid ${done ? "rgba(155,140,237,0.2)" : "rgba(0,0,0,0.04)"}`,
+                            cursor: editHabits ? "default" : "pointer", transition: "all 0.3s ease", backdropFilter: "blur(8px)" }}>
+                          {editHabits && <button onClick={e => { e.stopPropagation(); deleteHabit(h.id); }} style={{ width: 22, height: 22, borderRadius: "50%", border: "none", background: "#f0a0a0", color: "white", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, lineHeight: 1 }}>×</button>}
+                          <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, border: `2px solid ${done ? "#9b8ced" : "rgba(0,0,0,0.1)"}`, background: done ? "#9b8ced" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s ease" }}>
+                            {done && <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                          </div>
+                          <span style={{ fontSize: 20 }}>{h.emoji}</span>
+                          <span style={{ fontSize: 15, flex: 1, color: done ? "#9b8ced" : "#5a4a3a", fontWeight: 400, transition: "color 0.3s ease" }}>{h.text}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!showAddHabit ? (
+                    <button onClick={() => { setShowAddHabit(true); setEditHabits(false); }} style={{ width: "100%", marginTop: 12, padding: "12px", borderRadius: 14, border: "1.5px dashed rgba(155,140,237,0.4)", background: "rgba(155,140,237,0.04)", cursor: "pointer", fontSize: 14, color: "#9b8ced", fontWeight: 400, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                      <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> 新增習慣
+                    </button>
+                  ) : (
+                    <div style={{ marginTop: 12, padding: "16px", borderRadius: 14, border: "1.5px solid rgba(155,140,237,0.3)", background: "rgba(255,255,255,0.8)", backdropFilter: "blur(8px)" }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                        {EMOJI_OPTIONS.map(e => <button key={e} onClick={() => setNewHabitEmoji(e)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: newHabitEmoji===e ? "rgba(155,140,237,0.15)" : "rgba(0,0,0,0.03)", outline: newHabitEmoji===e ? "2px solid rgba(155,140,237,0.5)" : "none", cursor: "pointer", fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center" }}>{e}</button>)}
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input ref={habitInputRef} value={newHabitText} onChange={e => setNewHabitText(e.target.value)} onKeyDown={e => e.key==="Enter" && addHabit()} placeholder="每天想做什麼？" style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: "1.5px solid rgba(0,0,0,0.08)", background: "white", fontSize: 14, color: "#5a4a3a", outline: "none", fontFamily: "'Noto Sans TC', sans-serif" }} />
+                        <button onClick={addHabit} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "#9b8ced", color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>加入</button>
+                      </div>
+                      <button onClick={() => { setShowAddHabit(false); setNewHabitText(""); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#b8a99a", marginTop: 8, padding: "4px 0" }}>取消</button>
+                    </div>
+                  )}
+                  {habitsDone===habits.length&&habits.length>0 && (
+                    <div style={{ textAlign: "center", marginTop: 20, padding: "18px", borderRadius: 16, background: "rgba(155,140,237,0.06)", border: "1.5px solid rgba(155,140,237,0.15)" }}>
+                      <div style={{ fontSize: 28, marginBottom: 4 }}>🌿</div>
+                      <p style={{ fontFamily: "'Caveat', cursive", fontSize: 20, color: "#5a4a3a", margin: 0 }}>今天好好照顧自己了！</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Must / Free Items ── */}
+              {activeTab !== "habits" && (
+                <div>
+                  <div style={{ maxWidth: 500, margin: "0 auto 12px", display: "flex", justifyContent: "flex-end", padding: "0 4px" }}>
+                    <button onClick={() => { setEditMode(!editMode); setShowAdd(false); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: editMode ? tab.color : "#b8a99a", fontWeight: editMode ? 500 : 400, transition: "all 0.2s" }}>{editMode ? "完成編輯" : "編輯"}</button>
+                  </div>
+                  <div style={{ maxWidth: 500, margin: "0 auto" }}>
+                    {activeTab === "free" && !editMode ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                        {tabItems.map(item => (
+                          <div key={item.id} style={{ padding: "14px 18px", borderRadius: 16, background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(126,196,165,0.15)", display: "flex", alignItems: "center", gap: 10, backdropFilter: "blur(8px)" }}>
+                            <span style={{ fontSize: 20 }}>{item.emoji}</span>
+                            <span style={{ fontSize: 15, color: "#5a4a3a", fontWeight: 400 }}>{item.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {tabItems.map(item => {
+                          const done = checked[item.id]; const isAnim = animatingId===item.id; const isDel = deletingId===item.id;
+                          return (
+                            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 14,
+                              background: done ? `${tab.color}0a` : "rgba(255,255,255,0.6)",
+                              border: `1.5px solid ${done ? tab.color+"25" : "rgba(0,0,0,0.04)"}`,
+                              transition: "all 0.3s ease", transform: isAnim ? "scale(1.02)" : isDel ? "translateX(60px)" : "scale(1)",
+                              opacity: isDel ? 0 : 1, backdropFilter: "blur(8px)" }}>
+                              {editMode && <button onClick={() => deleteItem(item.id)} style={{ width: 22, height: 22, borderRadius: "50%", border: "none", background: "#f0a0a0", color: "white", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, lineHeight: 1 }}>×</button>}
+                              <div onClick={() => !editMode && toggle(item.id)} style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `2px solid ${done ? tab.color : "rgba(0,0,0,0.12)"}`, background: done ? tab.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s ease", cursor: editMode ? "default" : "pointer" }}>
+                                {done && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                              </div>
+                              <span onClick={() => !editMode && toggle(item.id)} style={{ fontSize: 18, flexShrink: 0, cursor: editMode ? "default" : "pointer" }}>{item.emoji}</span>
+                              <span onClick={() => !editMode && toggle(item.id)} style={{ fontSize: 15, flex: 1, color: done ? "#9a8b7a" : "#5a4a3a", fontWeight: done ? 300 : 400, textDecoration: done ? "line-through" : "none", textDecorationColor: "rgba(0,0,0,0.15)", transition: "all 0.3s ease", cursor: editMode ? "default" : "pointer" }}>{item.text}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!showAdd ? (
+                      <button onClick={() => { setShowAdd(true); setEditMode(false); }} style={{ width: "100%", marginTop: 12, padding: "12px", borderRadius: 14, border: `1.5px dashed ${tab.color}40`, background: `${tab.bg}80`, cursor: "pointer", fontSize: 14, color: tab.color, fontWeight: 400, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> 新增項目
+                      </button>
+                    ) : (
+                      <div style={{ marginTop: 12, padding: "16px", borderRadius: 14, border: `1.5px solid ${tab.color}30`, background: "rgba(255,255,255,0.8)", backdropFilter: "blur(8px)" }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                          {EMOJI_OPTIONS.map(e => <button key={e} onClick={() => setNewEmoji(e)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: newEmoji===e ? `${tab.color}18` : "rgba(0,0,0,0.03)", outline: newEmoji===e ? `2px solid ${tab.color}60` : "none", cursor: "pointer", fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center" }}>{e}</button>)}
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <input ref={inputRef} value={newText} onChange={e => setNewText(e.target.value)} onKeyDown={e => e.key==="Enter" && addItem()} placeholder="想做什麼？" style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: "1.5px solid rgba(0,0,0,0.08)", background: "white", fontSize: 14, color: "#5a4a3a", outline: "none", fontFamily: "'Noto Sans TC', sans-serif" }} />
+                          <button onClick={addItem} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: tab.color, color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>加入</button>
+                        </div>
+                        <button onClick={() => { setShowAdd(false); setNewText(""); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#b8a99a", marginTop: 8, padding: "4px 0" }}>取消</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Must completion */}
+              {activeTab === "must" && tabItems.length > 0 && tabDone === tabItems.length && (
+                <div style={{ maxWidth: 500, margin: "20px auto 0", textAlign: "center", padding: "20px", borderRadius: 16, background: `${tab.color}0a`, border: `1.5px solid ${tab.color}20` }}>
+                  <div style={{ fontSize: 32, marginBottom: 6 }}>🌟</div>
+                  <p style={{ fontFamily: "'Caveat', cursive", fontSize: 22, color: "#5a4a3a", margin: 0 }}>必做事項全部安排好了！放心！</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══ DAILY PAGE ═══ */}
+          {page === "daily" && (
+            <div style={{ maxWidth: 500, margin: "0 auto" }}>
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <p style={{ fontSize: 14, color: "#9a8b7a", margin: 0, fontWeight: 300, lineHeight: 1.6 }}>早上靠紀律，下午靠興趣，晚上靠輸出</p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                {DAILY_SCHEDULE.map((block, i) => {
+                  const isLast = i === DAILY_SCHEDULE.length - 1;
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 16 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 24, flexShrink: 0 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: i<=1?"#f0b775":i<=4?"#e8927c":i<=6?"#7ec4a5":"#9b8ced", flexShrink: 0, marginTop: 6 }} />
+                        {!isLast && <div style={{ width: 2, flex: 1, minHeight: 20, background: "rgba(0,0,0,0.06)" }} />}
+                      </div>
+                      <div style={{ flex: 1, paddingBottom: isLast ? 0 : 8 }}>
+                        <div style={{ marginBottom: 4, fontFamily: "'Caveat', cursive", fontSize: 15, color: "#b8a99a" }}>{block.time}</div>
+                        <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.65)", border: "1.5px solid rgba(0,0,0,0.04)", backdropFilter: "blur(8px)", marginBottom: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                            <span style={{ fontSize: 22 }}>{block.emoji}</span>
+                            <span style={{ fontSize: 16, fontWeight: 500, color: "#5a4a3a" }}>{block.title}</span>
+                          </div>
+                          <p style={{ fontSize: 13, color: "#9a8b7a", margin: 0, fontWeight: 300, lineHeight: 1.5 }}>{block.desc}</p>
+                          {block.type === "exercise" && (
+                            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                              {block.options.map(opt => {
+                                const sel = selectedExercise === opt.label;
+                                return (
+                                  <button key={opt.label} onClick={() => setSelectedExercise(sel ? null : opt.label)}
+                                    style={{ padding: "8px 14px", borderRadius: 10, border: `1.5px solid ${sel ? "#f0b775" : "rgba(0,0,0,0.06)"}`, background: sel ? "#f0b77512" : "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 13, color: "#5a4a3a", display: "flex", alignItems: "center", gap: 6, fontWeight: sel ? 500 : 400, transition: "all 0.2s ease", fontFamily: "'Noto Sans TC', sans-serif" }}>
+                                    <span style={{ fontSize: 16 }}>{opt.emoji}</span>{opt.label}{sel && <span style={{ fontSize: 12, marginLeft: 2 }}>✓</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ textAlign: "center", marginTop: 24, padding: "16px 20px", borderRadius: 14, background: "rgba(155,140,237,0.06)", border: "1.5px solid rgba(155,140,237,0.1)" }}>
+                <p style={{ fontSize: 13, color: "#8a7fb8", margin: 0, fontWeight: 300, lineHeight: 1.6 }}>這是理想節奏，不是規定<br/>偶爾睡到自然醒也很棒 ☁️</p>
+              </div>
+            </div>
+          )}
+
+          {/* Toast */}
+          {toast && (
+            <div style={{ position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)", background: "rgba(90,74,58,0.9)", color: "#fff", padding: "12px 24px", borderRadius: 100, fontSize: 14, backdropFilter: "blur(12px)", animation: "fadeInUp 0.3s ease", zIndex: 100, whiteSpace: "nowrap" }}>{toast}</div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<GapLife />);
+  </script>
+</body>
+</html>
