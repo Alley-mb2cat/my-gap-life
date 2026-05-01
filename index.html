@@ -77,11 +77,15 @@ const DAILY_SCHEDULE = [
   { time: "22:00 - 23:00", emoji: "🌙", title: "收尾", desc: "紀錄心情、回顧一天、放鬆入睡", type: "fixed" },
 ];
 
+// localStorage helpers
+const load = (key, fallback) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } };
+const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
+
 function GapLife() {
-  const [page, setPage] = useState("plan");
-  const [items, setItems] = useState(INITIAL_ITEMS);
-  const [checked, setChecked] = useState({});
-  const [activeTab, setActiveTab] = useState("must");
+  const [page, setPage] = useState(() => load("gl_page", "plan"));
+  const [items, setItems] = useState(() => load("gl_items", INITIAL_ITEMS));
+  const [checked, setChecked] = useState(() => load("gl_checked", {}));
+  const [activeTab, setActiveTab] = useState(() => load("gl_tab", "must"));
   const [toast, setToast] = useState(null);
   const [animatingId, setAnimatingId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -89,15 +93,24 @@ function GapLife() {
   const [newEmoji, setNewEmoji] = useState("📌");
   const [deletingId, setDeletingId] = useState(null);
   const [editMode, setEditMode] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState(null);
-  const [habits, setHabits] = useState(INITIAL_HABITS);
-  const [habitChecked, setHabitChecked] = useState({});
+  const [selectedExercise, setSelectedExercise] = useState(() => load("gl_exercise", null));
+  const [habits, setHabits] = useState(() => load("gl_habits", INITIAL_HABITS));
+  const [habitChecked, setHabitChecked] = useState(() => load("gl_habitChecked", {}));
   const [showAddHabit, setShowAddHabit] = useState(false);
   const [newHabitText, setNewHabitText] = useState("");
   const [newHabitEmoji, setNewHabitEmoji] = useState("📌");
   const [editHabits, setEditHabits] = useState(false);
   const habitInputRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Persist to localStorage
+  useEffect(() => { save("gl_page", page); }, [page]);
+  useEffect(() => { save("gl_items", items); }, [items]);
+  useEffect(() => { save("gl_checked", checked); }, [checked]);
+  useEffect(() => { save("gl_tab", activeTab); }, [activeTab]);
+  useEffect(() => { save("gl_exercise", selectedExercise); }, [selectedExercise]);
+  useEffect(() => { save("gl_habits", habits); }, [habits]);
+  useEffect(() => { save("gl_habitChecked", habitChecked); }, [habitChecked]);
 
   useEffect(() => { if (showAdd && inputRef.current) inputRef.current.focus(); }, [showAdd]);
   useEffect(() => { if (showAddHabit && habitInputRef.current) habitInputRef.current.focus(); }, [showAddHabit]);
